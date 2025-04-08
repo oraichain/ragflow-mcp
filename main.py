@@ -1,8 +1,12 @@
+from ragflow_sdk import RAGFlow
 from starlette.applications import Starlette
 from starlette.routing import Mount, Host
 from mcp.server.fastmcp import FastMCP
 import uvicorn
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 mcp = FastMCP("My App")
 
@@ -18,6 +22,20 @@ app = Starlette(
         Mount('/', app=mcp.sse_app()),
     ]
 )
+
+print("RAGFLOW_API_KEY", os.getenv("RAGFLOW_API_KEY"))
+
+ragflow = RAGFlow(
+    api_key=os.getenv("RAGFLOW_API_KEY"),
+    base_url="https://rf.orai.network"
+)
+
+@mcp.tool()
+def get_ragflow_datasets() -> str:
+    datasets = ragflow.list_datasets()
+    
+    """Returns an answer from RAGFlow."""
+    return datasets
 
 # or dynamically mount as host
 app.router.routes.append(Host('mcp.acme.corp', app=mcp.sse_app()))
