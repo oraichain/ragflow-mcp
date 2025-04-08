@@ -12,9 +12,8 @@ class JwtAuthTransport(SseServerTransport):
     Example basic auth implementation of SSE server transport.
     """
 
-    def __init__(self, endpoint: str, access_token: str):
+    def __init__(self, endpoint: str):
         super().__init__(endpoint)
-        self.expected_header = b"Bearer " + access_token
 
     @asynccontextmanager
     async def connect_sse(self, scope: Scope, receive: Receive, send: Send):

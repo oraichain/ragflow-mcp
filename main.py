@@ -2,14 +2,34 @@ from ragflow_sdk import RAGFlow
 from starlette.applications import Starlette
 from starlette.routing import Mount, Host
 from mcp.server.fastmcp import FastMCP
+from mcp.server.sse import SseServerTransport
+from auth import JwtAuthTransport
 import uvicorn
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
-mcp = FastMCP("My App")
+mcp = FastMCP("Ragflow MCP")
+transport = JwtAuthTransport(
+    "/messages/") if os.getenv("AUTH_ENABLED") == "true" else SseServerTransport("/messages/")
 
-# Define a simple "hello" tool
+
+async def handle_sse(request):
+    async with transport.connect_sse(
+        request.scope, request.receive, request._send
+    ) as streams:
+        await mcp._mcp_server.run(
+            streams[0],
+            streams[1],
+            mcp._mcp_server.create_initialization_options(),
+        )
+
+app = Starlette(
+    routes=[
+        Mount('/sse/', app=handle_sse),
+        Mount("/messages/", app=transport.handle_post_message),
+    ]
+)
 
 
 @mcp.tool()
@@ -17,13 +37,6 @@ def hello() -> str:
     """Returns a simple greeting."""
     return "Hello, World!"
 
-
-# Mount the SSE server to the existing ASGI server
-app = Starlette(
-    routes=[
-        Mount('/', app=mcp.sse_app()),
-    ]
-)
 
 print("RAGFLOW_API_KEY", os.getenv("RAGFLOW_API_KEY"))
 
@@ -127,7 +140,7 @@ def upload_documents_to_dataset(dataset_id: str, file_paths: list[str]) -> str:
 
 
 # or dynamically mount as host
-app.router.routes.append(Host('mcp.acme.corp', app=mcp.sse_app()))
+app.router.routes.append(Host('mcp.acme.corp', app=app))
 
 if __name__ == "__main__":
     # Run the server with Uvicorn
