@@ -27,7 +27,7 @@ print("RAGFLOW_API_KEY", os.getenv("RAGFLOW_API_KEY"))
 
 ragflow = RAGFlow(
     api_key=os.getenv("RAGFLOW_API_KEY"),
-    base_url="https://rf.orai.network"
+    base_url=os.getenv("RAGFLOW_BASE_URL")
 )
 
 @mcp.tool()
