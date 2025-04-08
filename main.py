@@ -37,6 +37,22 @@ def get_ragflow_datasets() -> str:
     """Returns an answer from RAGFlow."""
     return datasets
 
+@mcp.tool()
+def create_ragflow_dataset(name: str) -> str:
+    """Creates a new dataset in RAGFlow.
+    
+    Args:
+        name (str): The name of the dataset to create
+        
+    Returns:
+        str: Response from the API indicating success or failure
+    """
+    try:
+        response = ragflow.create_dataset(name=name)
+        return f"Successfully created dataset '{name}': {response}"
+    except Exception as e:
+        return f"Failed to create dataset: {str(e)}"
+
 # or dynamically mount as host
 app.router.routes.append(Host('mcp.acme.corp', app=mcp.sse_app()))
 
