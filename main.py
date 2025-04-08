@@ -99,6 +99,33 @@ def create_ragflow_dataset(name: str) -> str:
         return f"Failed to create dataset: {str(e)}"
 
 
+@mcp.tool()
+def upload_documents_to_dataset(dataset_id: str, file_paths: list[str]) -> str:
+    """Uploads documents to a RAGFlow dataset.
+
+    Args:
+        dataset_id (str): The ID of the dataset to upload documents to
+        file_paths (list[str]): List of file paths to upload
+
+    Returns:
+        str: Response from the API indicating success or failure
+    """
+    try:
+        # Upload each file to the dataset
+        responses = []
+        for file_path in file_paths:
+            with open(file_path, 'rb') as f:
+                response = ragflow.upload_document(
+                    dataset_id=dataset_id,
+                    file=f
+                )
+                responses.append(response)
+
+        return f"Successfully uploaded {len(responses)} documents: {responses}"
+    except Exception as e:
+        return f"Failed to upload documents: {str(e)}"
+
+
 # or dynamically mount as host
 app.router.routes.append(Host('mcp.acme.corp', app=mcp.sse_app()))
 
