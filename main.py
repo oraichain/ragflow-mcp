@@ -27,7 +27,7 @@ async def handle_sse(request):
 app = Starlette(
     routes=[
         Mount('/sse/', app=handle_sse),
-        Mount("/messages/", app=transport.handle_post_message),
+        Mount("/messages/", app=transport.handle_post_message)
     ]
 )
 
@@ -53,13 +53,14 @@ def get_ragflow_datasets() -> str:
     """Returns an answer from RAGFlow."""
     return datasets
 
+
 @mcp.tool()
 def create_ragflow_dataset(name: str) -> str:
     """Creates a new dataset in RAGFlow.
-    
+
     Args:
         name (str): The name of the dataset to create
-        
+
     Returns:
         str: Response from the API indicating success or failure
     """
@@ -69,14 +70,15 @@ def create_ragflow_dataset(name: str) -> str:
     except Exception as e:
         return f"Failed to create dataset: {str(e)}"
 
+
 @mcp.tool()
 def upload_documents_to_dataset(dataset_id: str, file_paths: list[str]) -> str:
     """Uploads documents to a RAGFlow dataset.
-    
+
     Args:
         dataset_id (str): The ID of the dataset to upload documents to
         file_paths (list[str]): List of file paths to upload
-        
+
     Returns:
         str: Response from the API indicating success or failure
     """
@@ -90,10 +92,11 @@ def upload_documents_to_dataset(dataset_id: str, file_paths: list[str]) -> str:
                     file=f
                 )
                 responses.append(response)
-        
+
         return f"Successfully uploaded {len(responses)} documents: {responses}"
     except Exception as e:
         return f"Failed to upload documents: {str(e)}"
+
 
 @mcp.tool()
 def create_ragflow_dataset(name: str) -> str:
