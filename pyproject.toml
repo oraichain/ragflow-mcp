@@ -1,0 +1,7 @@
+[project]
+name = "ragflow-mcp"
+version = "0.1.0"
+description = "Simple MCP server for RAGFlow"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["mcp", "uvicorn", "starlette"]
