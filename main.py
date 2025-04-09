@@ -162,11 +162,20 @@ def upload_rag(dataset_name: str, display_names: list[str], blobs: list[str]) ->
 
 @mcp.tool()
 def query_rag(dataset_name: str, query: str) -> str:
-    """Returns the answer from the knowledge base.
+    """
+    Queries the specified dataset in the knowledge base to retrieve an answer based on the provided query.
+
+    Args:
+        dataset_name (str): The name of the dataset to query.
+        query (str): The question or query string to search for in the dataset.
 
     Returns:
-        content: The answer from the knowledge base,
-        source: The source of the answer
+        str: A dictionary containing:
+            - "reference": Details of the reference data from the knowledge base, including content and source information.
+            - "answer": The answer derived from the knowledge base. If the answer is not found, a message indicating this will be returned.
+
+    Raises:
+        Exception: If an error occurs during the query process, an error message is returned.
     """
     try:
         response = ask_ragflow(dataset_name, query)
@@ -174,7 +183,7 @@ def query_rag(dataset_name: str, query: str) -> str:
             "reference": response['data']['reference'],
             "answer": response['data']['answer']
         }
-
+    
     except Exception as e:
         return f"Error querying dataset: {str(e)}"
 
