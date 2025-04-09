@@ -160,6 +160,78 @@ def list_datasets(
         return f"Failed to list datasets: {str(e)}"
 
 
+@mcp.tool()
+def list_documents_in_dataset(dataset_name: str, keywords: str = None) -> str:
+    """Lists documents in a RAGFlow dataset with optional keyword filtering.
+    
+    Args:
+        dataset_name (str): The name of the dataset to list documents from
+        keywords (str, optional): Keywords to filter documents. Defaults to None.
+    
+    Returns:
+        str: List of documents matching the criteria
+    """
+    try:
+        # Get the dataset object
+        dataset = ragflow.get_dataset(name=dataset_name)
+        
+        # List documents with optional keyword filter
+        documents = dataset.list_documents(keywords=keywords)
+        
+        # Format document information
+        doc_list = []
+        for doc in documents:
+            doc_list.append({
+                "id": doc.id,
+                "name": doc.display_name if hasattr(doc, 'display_name') else "Unknown",
+                "status": "listed"
+            })
+        
+        return {
+            "status": "success",
+            "message": f"Found {len(doc_list)} documents",
+            "dataset": dataset_name,
+            "documents": doc_list
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
+@mcp.tool()
+def parse_documents_in_dataset(dataset_name: str, document_ids: list[str]) -> str:
+    """Initiates async parsing of documents in a RAGFlow dataset.
+    
+    Args:
+        dataset_name (str): The name of the dataset containing the documents
+        document_ids (list[str]): List of document IDs to parse
+    
+    Returns:
+        str: Response indicating parsing initiation status
+    """
+    try:
+        # Get the dataset object
+        dataset = ragflow.get_dataset(name=dataset_name)
+        
+        # Initiate async parsing
+        dataset.async_parse_documents(document_ids)
+        
+        return {
+            "status": "success",
+            "message": "Async document parsing initiated",
+            "dataset": dataset_name,
+            "document_count": len(document_ids),
+            "document_ids": document_ids
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
 # or dynamically mount as host
 app.router.routes.append(Host('mcp.acme.corp', app=app))
 
