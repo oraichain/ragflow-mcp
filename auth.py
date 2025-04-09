@@ -18,7 +18,12 @@ class JwtAuthTransport(SseServerTransport):
     @asynccontextmanager
     async def connect_sse(self, scope: Scope, receive: Receive, send: Send):
         auth_header = dict(scope["headers"]).get(b'authorization', b'')
+        print("auth_header", auth_header)
         if not auth_header:
             raise HTTPException(status_code=401, detail="Unauthorized")
+
+        # global_session[auth_header] = {}
         async with super().connect_sse(scope, receive, send) as streams:
+            # get session from global_session
+            print("global_session", streams)
             yield streams
