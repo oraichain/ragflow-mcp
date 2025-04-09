@@ -91,6 +91,54 @@ def upload_documents_to_dataset(dataset_id: str, file_paths: list[str]) -> str:
         return f"Failed to upload documents: {str(e)}"
 
 
+@mcp.tool()
+def list_datasets(
+    page: int = 1,
+    page_size: int = 30,
+    orderby: str = "create_time",
+    desc: bool = True,
+    name: str = None,
+    dataset_id: str = None
+) -> str:
+    """Lists datasets with filtering options.
+    
+    Args:
+        page (int, optional): Page number for pagination. Defaults to 1.
+        page_size (int, optional): Number of items per page. Defaults to 30.
+        orderby (str, optional): Field to sort by ('create_time' or 'update_time'). Defaults to 'create_time'.
+        desc (bool, optional): Sort in descending order if True. Defaults to True.
+        name (str, optional): Filter by dataset name. Defaults to None.
+        dataset_id (str, optional): Filter by dataset ID. Defaults to None.
+    
+    Returns:
+        str: List of datasets matching the criteria
+    """
+    try:
+        # Validate orderby parameter
+        if orderby not in ["create_time", "update_time"]:
+            return "Error: orderby must be either 'create_time' or 'update_time'"
+
+        # Build query parameters
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "orderby": orderby,
+            "desc": desc
+        }
+        
+        # Add optional filters if provided
+        if name:
+            params["name"] = name
+        if dataset_id:
+            params["id"] = dataset_id
+
+        # Get datasets with filters
+        datasets = ragflow.list_datasets(**params)
+        return f"Successfully retrieved datasets: {datasets}"
+    except Exception as e:
+        return f"Failed to list datasets: {str(e)}"
+
+
 # or dynamically mount as host
 app.router.routes.append(Host('mcp.acme.corp', app=app))
 
