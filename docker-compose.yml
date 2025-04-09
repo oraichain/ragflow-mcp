@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  app:
+    image: ragflow-mcp
+    ports:
+      - "8000:8000"
+    environment:
+      - NAME=World
+    # Remove or adjust volumes if not needed for this image
+    # volumes:
+    #   - .:/app

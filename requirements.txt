@@ -1,0 +1,7 @@
+click==8.1.8
+python-dotenv==1.0.1
+pydantic_settings==2.8.1
+ragflow-sdk==0.17.2
+starlette==0.45.3
+uvicorn==0.34.0
+mcp==1.3.0
