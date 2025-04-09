@@ -123,6 +123,7 @@ def upload_rag(dataset_name: str, display_names: list[str], blobs: list[str]) ->
         str: Response from the API indicating success or failure
     """
     try:
+        print("dataset_name", dataset_name)
         dataset = ragflow.get_dataset(name=dataset_name)
 
         documents = []
@@ -138,10 +139,13 @@ def upload_rag(dataset_name: str, display_names: list[str], blobs: list[str]) ->
         # Get document IDs
         doc_info = []
         for doc in response:
+            dataset.async_parse_documents([doc.id])
             doc_info.append({
                 "name": doc.display_name if hasattr(doc, 'display_name') else display_names[0],
                 "id": doc.id
             })
+
+        #training 
 
         return {
             "status": "success",
