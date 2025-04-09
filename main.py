@@ -90,9 +90,26 @@ def upload_documents_to_dataset(dataset_name: str, display_names: list[str], blo
         
         # Upload documents
         response = dataset.upload_documents(documents)
-        return f"Successfully uploaded {len(documents)} documents: {response}"
+        
+        # Get document IDs
+        doc_info = []
+        for doc in response:
+            doc_info.append({
+                "name": doc.display_name if hasattr(doc, 'display_name') else display_names[0],
+                "id": doc.id
+            })
+        
+        return {
+            "status": "success",
+            "message": f"Successfully uploaded {len(documents)} documents",
+            "dataset": dataset_name,
+            "documents": doc_info
+        }
     except Exception as e:
-        return f"Failed to upload documents: {str(e)}"
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 
 @mcp.tool()
