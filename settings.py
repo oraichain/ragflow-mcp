@@ -13,6 +13,8 @@ class Settings(BaseSettings):
         "RAGFLOW_API_KEY")
     ragflow_base_url: str = os.getenv(
         "RAGFLOW_BASE_URL")
+    model_name: str = os.getenv(
+        "MODEL_NAME") or None
 
     class Config:
         # If you don't use .env file, pydantic can read directly from environment variables
