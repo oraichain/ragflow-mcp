@@ -10,7 +10,7 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 from configs.ragflow import ragflow
-from services.chat_assistant import create_chat_session
+from services.chat_assistant import ask_ragflow, create_chat_session
 from services.dataset import create_initial_dataset, get_dataset_by_name
 from settings import settings
 import json
@@ -169,9 +169,12 @@ def query_rag(dataset_name: str, query: str) -> str:
         source: The source of the answer
     """
     try:
-        session = create_chat_session(dataset_name)
-        response = session.ask(question=query)
-        return response
+        response = ask_ragflow(dataset_name,query)
+        return {
+            "reference": response['data']['reference'],
+            "answer": response['data']['answer']
+        }
+    
     except Exception as e:
         return f"Error querying dataset: {str(e)}"
 

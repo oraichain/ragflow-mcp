@@ -3,6 +3,8 @@ from ragflow_sdk import Chat
 from services.dataset import create_initial_dataset, get_dataset_by_name
 from settings import settings
 from configs.logger import get_logger
+import requests
+import json
 
 logger = get_logger(__name__)
 
@@ -51,7 +53,25 @@ def get_chat_session(user_id: str):
     else:
         return create_chat_session(user_id)
 
+def  ask_ragflow(user_id: str, question: str,stream:bool=False):
+    session = create_chat_session(user_id)
+    if not session:
+        return None
+    
+    url = f"{settings.ragflow_base_url}/api/v1/chats/{session.chat_id}/completions"
 
+    payload = json.dumps({
+        "question": question,
+        "stream": stream,
+        "session_id": session.id
+    })
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {settings.ragflow_api_key}'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    return response.json()
 # test
 # if __name__ == "__main__":
 #     user_id = "new_user_id"
