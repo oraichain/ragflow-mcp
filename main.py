@@ -10,20 +10,34 @@ from configs.ragflow import ragflow
 
 load_dotenv()
 
+
+def get_transport():
+    try:
+        if os.getenv("AUTH_ENABLED", "false").lower() == "true":
+            return JwtAuthTransport("/messages/")
+        return SseServerTransport("/messages/")
+    except Exception as e:
+        print(f"Warning: Error initializing transport: {e}")
+        return SseServerTransport("/messages/")  # Fallback to SSE transport
+
+
 mcp = FastMCP("Ragflow MCP")
-transport = JwtAuthTransport(
-    "/messages/") if os.getenv("AUTH_ENABLED") == "true" else SseServerTransport("/messages/")
+transport = get_transport()
 
 
 async def handle_sse(request):
-    async with transport.connect_sse(
-        request.scope, request.receive, request._send
-    ) as streams:
-        await mcp._mcp_server.run(
-            streams[0],
-            streams[1],
-            mcp._mcp_server.create_initialization_options(),
-        )
+    try:
+        async with transport.connect_sse(
+            request.scope, request.receive, request._send
+        ) as streams:
+            await mcp._mcp_server.run(
+                streams[0],
+                streams[1],
+                mcp._mcp_server.create_initialization_options(),
+            )
+    except Exception as e:
+        print(f"Error in handle_sse: {e}")
+        raise
 
 app = Starlette(
     routes=[
@@ -41,10 +55,11 @@ def hello() -> str:
 
 @mcp.tool()
 def get_ragflow_datasets() -> str:
-    datasets = ragflow.list_datasets()
-
-    """Returns an answer from RAGFlow."""
-    return datasets
+    try:
+        datasets = ragflow.list_datasets()
+        return datasets
+    except Exception as e:
+        return f"Error fetching datasets: {str(e)}"
 
 
 @mcp.tool()
