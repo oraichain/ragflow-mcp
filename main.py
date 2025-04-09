@@ -145,7 +145,7 @@ def upload_rag(dataset_name: str, display_names: list[str], blobs: list[str]) ->
                 "id": doc.id
             })
 
-        #training 
+        # training
 
         return {
             "status": "success",
@@ -169,12 +169,12 @@ def query_rag(dataset_name: str, query: str) -> str:
         source: The source of the answer
     """
     try:
-        response = ask_ragflow(dataset_name,query)
+        response = ask_ragflow(dataset_name, query)
         return {
             "reference": response['data']['reference'],
             "answer": response['data']['answer']
         }
-    
+
     except Exception as e:
         return f"Error querying dataset: {str(e)}"
 
