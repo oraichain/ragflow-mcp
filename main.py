@@ -65,28 +65,32 @@ def create_ragflow_dataset(name: str) -> str:
 
 
 @mcp.tool()
-def upload_documents_to_dataset(dataset_id: str, file_paths: list[str]) -> str:
+def upload_documents_to_dataset(dataset_name: str, display_names: list[str], blobs: list[str]) -> str:
     """Uploads documents to a RAGFlow dataset.
 
     Args:
-        dataset_id (str): The ID of the dataset to upload documents to
-        file_paths (list[str]): List of file paths to upload
+        dataset_name (str): The name of the dataset to upload documents to
+        display_names (list[str]): List of display names for the documents
+        blobs (list[str]): List of document contents as strings
 
     Returns:
         str: Response from the API indicating success or failure
     """
     try:
-        # Upload each file to the dataset
-        responses = []
-        for file_path in file_paths:
-            with open(file_path, 'rb') as f:
-                response = ragflow.upload_document(
-                    dataset_id=dataset_id,
-                    file=f
-                )
-                responses.append(response)
-
-        return f"Successfully uploaded {len(responses)} documents: {responses}"
+        # Get the dataset object using dataset name
+        dataset = ragflow.get_dataset(name=dataset_name)
+        
+        # Prepare documents list
+        documents = []
+        for display_name, blob in zip(display_names, blobs):
+            documents.append({
+                "display_name": display_name,
+                "blob": blob
+            })
+        
+        # Upload documents
+        response = dataset.upload_documents(documents)
+        return f"Successfully uploaded {len(documents)} documents: {response}"
     except Exception as e:
         return f"Failed to upload documents: {str(e)}"
 
