@@ -1,5 +1,5 @@
 from starlette.applications import Starlette
-from starlette.routing import Mount, Host
+from starlette.routing import Mount, Host, Route
 from mcp.server.fastmcp import FastMCP
 from mcp.server.sse import SseServerTransport
 from auth import JwtAuthTransport
@@ -27,7 +27,7 @@ async def handle_sse(request):
 
 app = Starlette(
     routes=[
-        Mount('/sse/', app=handle_sse),
+        Route('/sse/', endpoint=handle_sse),
         Mount("/messages/", app=transport.handle_post_message)
     ]
 )
