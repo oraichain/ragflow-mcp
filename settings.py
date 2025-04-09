@@ -9,12 +9,11 @@ load_dotenv()
 
 class Settings(BaseSettings):
     """Application settings."""
-    ragflow_api_key: str = os.getenv(
-        "RAGFLOW_API_KEY")
+    ragflow_api_key: str = os.getenv("RAGFLOW_API_KEY", "")
     ragflow_base_url: str = os.getenv(
-        "RAGFLOW_BASE_URL")
-    model_name: str = os.getenv(
-        "MODEL_NAME") or None
+        "RAGFLOW_BASE_URL", "")
+    model_name: str = os.getenv("MODEL_NAME", ""),
+    enable_auth: bool = os.getenv("AUTH_ENABLED", "").lower() == "true"
 
     class Config:
         # If you don't use .env file, pydantic can read directly from environment variables
