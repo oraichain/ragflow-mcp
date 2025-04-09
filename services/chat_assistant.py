@@ -1,3 +1,4 @@
+from datetime import datetime
 from configs.ragflow import ragflow
 from ragflow_sdk import Chat
 from services.dataset import create_initial_dataset, get_dataset_by_name
@@ -8,9 +9,8 @@ import json
 
 logger = get_logger(__name__)
 
-llm_chat = Chat.LLM({
-    "model_name": settings.model_name
-}, {}) if settings.model_name else None
+llm_chat = Chat.LLM({}, {"model_name": settings.model_name}
+                    ) if settings.model_name else None
 
 
 def create_chat_assistant(user_id: str):
@@ -33,10 +33,11 @@ def get_chat_assistant(user_id: str):
         return create_chat_assistant(user_id)
 
 
-def create_chat_session(user_id: str, session_name: str = "New session"):
+def create_chat_session(user_id: str):
     chat = get_chat_assistant(user_id)
     if not chat:
         return None
+    session_name = f"New session {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     return chat.create_session(session_name)
 
 
@@ -53,11 +54,12 @@ def get_chat_session(user_id: str):
     else:
         return create_chat_session(user_id)
 
-def  ask_ragflow(user_id: str, question: str,stream:bool=False):
+
+def ask_ragflow(user_id: str, question: str, stream: bool = False):
     session = create_chat_session(user_id)
     if not session:
         return None
-    
+
     url = f"{settings.ragflow_base_url}/api/v1/chats/{session.chat_id}/completions"
 
     payload = json.dumps({
