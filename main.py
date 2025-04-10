@@ -14,8 +14,9 @@ from services.chat_assistant import ask_ragflow, create_chat_session
 from services.dataset import create_initial_dataset, get_dataset_by_name
 from settings import settings
 import json
+from global_session import user_sessions
+import asyncio
 
-global_session = {}
 load_dotenv()
 
 
@@ -48,20 +49,52 @@ async def handle_sse(request):
         raise
 
 
-def wrap_handle_post_message(scope: Scope,
-                             receive: Receive,
-                             send: Send):
-    print("scope", scope.get("user_id", "World"))
-    print("receive", receive)
-    print("send", send)
-    request = Request(scope, receive)
-    print("request", request.get("headers"))
-    user = request.get("headers")
-    session_id_param = request.query_params.get("session_id")
-    global_session[session_id_param] = user
-    scope['user_id'] = "abc"
-    return transport.handle_post_message(scope, receive, send)
+async def wrap_handle_post_message(scope: Scope,
+                                   receive: Receive,
+                                   send: Send):
+    temp_request = Request(scope, receive)
+    authorization = temp_request.headers.get("authorization")
+    # ---- Start modify body ----
+    original_body_bytes = b''
+    original_receive = receive
+    more_body = True
+    while more_body:
+        message = await original_receive()
+        print(f"Received message: {message}")
+        if message['type'] == 'http.request':
+            original_body_bytes += message.get('body', b'')
+            more_body = message.get('more_body', False)
+        elif message['type'] == 'http.disconnect':
+            print("Client disconnected while reading body")
+            return
+        else:
+            pass
 
+    modified_body_bytes = original_body_bytes
+    try:
+        # Parse JSON
+        data = json.loads(original_body_bytes.decode('utf-8'))
+        if 'params' in data and 'arguments' in data['params']:
+            if settings.enable_auth:
+                data['params']['arguments']['dataset_name'] = authorization
+        modified_body_bytes = json.dumps(data).encode('utf-8')
+    except json.JSONDecodeError as e:
+        print(f"Warning: Could not parse request body as JSON: {e}")
+
+    except Exception as e:
+        print(f"Error during body modification: {e}")
+    _receive_called = False
+
+    async def modified_receive():
+        nonlocal _receive_called
+        if not _receive_called:
+            _receive_called = True
+            return {'type': 'http.request', 'body': modified_body_bytes, 'more_body': False}
+        else:
+            await asyncio.sleep(3600)
+            return {'type': 'http.disconnect'}
+
+    return await transport.handle_post_message(scope, modified_receive, send)
 
 app = Starlette(
     routes=[
@@ -69,16 +102,6 @@ app = Starlette(
         Mount("/messages/", app=wrap_handle_post_message)
     ]
 )
-
-
-@mcp.tool()
-def hello(ctx: Context) -> str:
-    """Returns a simple greeting with user ID."""
-
-    session_id = ctx.get("session_id", "World")
-    print("session_id", session_id)
-    print("ctx", ctx.get("user_id", "World"))
-    return f"Hello, {ctx.get('user_id', 'World')}!"
 
 
 @mcp.tool()
@@ -95,7 +118,7 @@ def create_rag(name: str) -> str:
     """Creates a initial knowledge base and dataset for the user.
 
     Args:
-        name (str): The name of the dataset to create
+        name (str): The name of the dataset to create,
 
     Returns:
         str: Response from the API indicating success or failure
