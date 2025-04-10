@@ -20,8 +20,7 @@ async def __main(endpoint: str):
             # Call the execute_command tool
             result = await session.call_tool("hello", {})
             print("-" * 100)
-            for content in result.content:
-                print(content.text)
+            print(result)
 
 
 @click.command()
