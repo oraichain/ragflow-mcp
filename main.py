@@ -1,24 +1,22 @@
-from starlette.applications import Starlette
-from starlette.requests import Request
+import asyncio
+import json
 
-from starlette.routing import Mount, Host, Route
+import uvicorn
+from dotenv import load_dotenv
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.sse import SseServerTransport
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.routing import Host, Mount, Route
 from starlette.types import Receive, Scope, Send
+
 from auth import JwtAuthTransport
-import uvicorn
-import os
-from dotenv import load_dotenv
 from configs.ragflow import ragflow
-from services.chat_assistant import ask_ragflow, create_chat_session
+from services.chat_assistant import ask_ragflow
 from services.dataset import create_initial_dataset, get_dataset_by_name
 from settings import settings
-import json
-from global_session import user_sessions
-import asyncio
 
 load_dotenv()
-
 
 def get_transport():
     try:
@@ -29,10 +27,8 @@ def get_transport():
         print(f"Warning: Error initializing transport: {e}")
         return SseServerTransport("/messages/")  # Fallback to SSE transport
 
-
 mcp = FastMCP("Ragflow MCP")
 transport = get_transport()
-
 
 async def handle_sse(request):
     try:
@@ -49,22 +45,20 @@ async def handle_sse(request):
         raise
 
 
-async def wrap_handle_post_message(scope: Scope,
-                                   receive: Receive,
-                                   send: Send):
+async def wrap_handle_post_message(scope: Scope, receive: Receive, send: Send):
     temp_request = Request(scope, receive)
     authorization = temp_request.headers.get("authorization")
     # ---- Start modify body ----
-    original_body_bytes = b''
+    original_body_bytes = b""
     original_receive = receive
     more_body = True
     while more_body:
         message = await original_receive()
         print(f"Received message: {message}")
-        if message['type'] == 'http.request':
-            original_body_bytes += message.get('body', b'')
-            more_body = message.get('more_body', False)
-        elif message['type'] == 'http.disconnect':
+        if message["type"] == "http.request":
+            original_body_bytes += message.get("body", b"")
+            more_body = message.get("more_body", False)
+        elif message["type"] == "http.disconnect":
             print("Client disconnected while reading body")
             return
         else:
@@ -73,11 +67,11 @@ async def wrap_handle_post_message(scope: Scope,
     modified_body_bytes = original_body_bytes
     try:
         # Parse JSON
-        data = json.loads(original_body_bytes.decode('utf-8'))
-        if 'params' in data and 'arguments' in data['params']:
+        data = json.loads(original_body_bytes.decode("utf-8"))
+        if "params" in data and "arguments" in data["params"]:
             if settings.enable_auth:
-                data['params']['arguments']['dataset_name'] = authorization
-        modified_body_bytes = json.dumps(data).encode('utf-8')
+                data["params"]["arguments"]["dataset_name"] = authorization
+        modified_body_bytes = json.dumps(data).encode("utf-8")
     except json.JSONDecodeError as e:
         print(f"Warning: Could not parse request body as JSON: {e}")
 
@@ -89,17 +83,22 @@ async def wrap_handle_post_message(scope: Scope,
         nonlocal _receive_called
         if not _receive_called:
             _receive_called = True
-            return {'type': 'http.request', 'body': modified_body_bytes, 'more_body': False}
+            return {
+                "type": "http.request",
+                "body": modified_body_bytes,
+                "more_body": False,
+            }
         else:
             await asyncio.sleep(3600)
-            return {'type': 'http.disconnect'}
+            return {"type": "http.disconnect"}
 
     return await transport.handle_post_message(scope, modified_receive, send)
 
+
 app = Starlette(
     routes=[
-        Route('/sse/', endpoint=handle_sse),
-        Mount("/messages/", app=wrap_handle_post_message)
+        Route("/sse/", endpoint=handle_sse),
+        Mount("/messages/", app=wrap_handle_post_message),
     ]
 )
 
@@ -151,10 +150,7 @@ def upload_rag(dataset_name: str, display_names: list[str], blobs: list[str]) ->
 
         documents = []
         for display_name, blob in zip(display_names, blobs):
-            documents.append({
-                "display_name": display_name,
-                "blob": blob
-            })
+            documents.append({"display_name": display_name, "blob": blob})
 
         # Upload documents
         response = dataset.upload_documents(documents)
@@ -163,10 +159,16 @@ def upload_rag(dataset_name: str, display_names: list[str], blobs: list[str]) ->
         doc_info = []
         for doc in response:
             dataset.async_parse_documents([doc.id])
-            doc_info.append({
-                "name": doc.display_name if hasattr(doc, 'display_name') else display_names[0],
-                "id": doc.id
-            })
+            doc_info.append(
+                {
+                    "name": (
+                        doc.display_name
+                        if hasattr(doc, "display_name")
+                        else display_names[0]
+                    ),
+                    "id": doc.id,
+                }
+            )
 
         # training
 
@@ -174,13 +176,10 @@ def upload_rag(dataset_name: str, display_names: list[str], blobs: list[str]) ->
             "status": "success",
             "message": f"Successfully uploaded {len(documents)} documents",
             "dataset": dataset_name,
-            "documents": doc_info
+            "documents": doc_info,
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
 
 @mcp.tool()
@@ -203,16 +202,16 @@ def query_rag(dataset_name: str, query: str) -> str:
     try:
         response = ask_ragflow(dataset_name, query)
         return {
-            "reference": response['data']['reference'],
-            "answer": response['data']['answer']
+            "reference": response["data"]["reference"],
+            "answer": response["data"]["answer"],
         }
-    
+
     except Exception as e:
         return f"Error querying dataset: {str(e)}"
 
 
 # or dynamically mount as host
-app.router.routes.append(Host('mcp.acme.corp', app=app))
+app.router.routes.append(Host("mcp.acme.corp", app=app))
 
 if __name__ == "__main__":
     # Run the server with Uvicorn
