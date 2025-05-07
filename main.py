@@ -3,7 +3,7 @@ import json
 
 import uvicorn
 from dotenv import load_dotenv
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.fastmcp import FastMCP
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -18,6 +18,7 @@ from settings import settings
 
 load_dotenv()
 
+
 def get_transport():
     try:
         if settings.enable_auth:
@@ -27,8 +28,10 @@ def get_transport():
         print(f"Warning: Error initializing transport: {e}")
         return SseServerTransport("/messages/")  # Fallback to SSE transport
 
+
 mcp = FastMCP("Ragflow MCP")
 transport = get_transport()
+
 
 async def handle_sse(request):
     try:
@@ -103,108 +106,104 @@ app = Starlette(
 )
 
 
-@mcp.tool()
-def get_ragflow_datasets() -> str:
-    try:
-        datasets = ragflow.list_datasets()
-        return datasets
-    except Exception as e:
-        return f"Error fetching datasets: {str(e)}"
+# @mcp.tool()
+# def get_ragflow_datasets() -> str:
+#     try:
+#         datasets = ragflow.list_datasets()
+#         return datasets
+#     except Exception as e:
+#         return f"Error fetching datasets: {str(e)}"
+
+# @mcp.tool()
+# def create_rag(name: str) -> str:
+#     """Creates a initial knowledge base and dataset for the user.
+
+#     Args:
+#         name (str): The name of the dataset to create,
+
+#     Returns:
+#         str: Response from the API indicating success or failure
+#     """
+#     existed_datasets = get_dataset_by_name(name)
+#     if len(existed_datasets) > 0:
+#         return f"Dataset '{name}' already exists"
+#     try:
+#         response = create_initial_dataset(name)
+#         return f"Successfully created dataset '{name}': {response.id}"
+#     except Exception as e:
+#         return f"Failed to create dataset: {str(e)}"
+
+dataset_name = "Conversation Memories"
 
 
 @mcp.tool()
-def create_rag(name: str) -> str:
-    """Creates a initial knowledge base and dataset for the user.
+def save_recall_memory(memory: str, conversation_id: str) -> str:
+    """Save a memory to the database for later semantic retrieval.
 
     Args:
-        name (str): The name of the dataset to create,
+        memory (str): The memory to be saved.
+        conversation_id (str): The conversation id to be saved.
 
     Returns:
-        str: Response from the API indicating success or failure
-    """
-    existed_datasets = get_dataset_by_name(name)
-    if len(existed_datasets) > 0:
-        return f"Dataset '{name}' already exists"
-    try:
-        response = create_initial_dataset(name)
-        return f"Successfully created dataset '{name}': {response.id}"
-    except Exception as e:
-        return f"Failed to create dataset: {str(e)}"
-
-
-@mcp.tool()
-def upload_rag(dataset_name: str, display_names: list[str], blobs: list[str]) -> str:
-    """Uploads documents and provide more knowledge base for the dataset.
-
-    Args:
-        dataset_name (str): The name of the dataset to upload documents to
-        display_names (list[str]): List of display names for the documents
-        blobs (list[str]): List of document contents as strings
-
-    Returns:
-        str: Response from the API indicating success or failure
+        str: The saved memory.
     """
     try:
-        print("dataset_name", dataset_name)
         dataset = ragflow.get_dataset(name=dataset_name)
 
-        documents = []
-        for display_name, blob in zip(display_names, blobs):
-            documents.append({"display_name": display_name, "blob": blob})
-
-        # Upload documents
-        response = dataset.upload_documents(documents)
-
-        # Get document IDs
-        doc_info = []
-        for doc in response:
-            dataset.async_parse_documents([doc.id])
-            doc_info.append(
-                {
-                    "name": (
-                        doc.display_name
-                        if hasattr(doc, "display_name")
-                        else display_names[0]
-                    ),
-                    "id": doc.id,
-                }
-            )
-
-        # training
-
-        return {
-            "status": "success",
-            "message": f"Successfully uploaded {len(documents)} documents",
-            "dataset": dataset_name,
-            "documents": doc_info,
+        # create a new document for memory: memory: str -> dict(display_name: The file name to display in the dataset, blob: The binary content of the file to upload.)
+        document = {
+            "display_name": conversation_id + ".txt",
+            "blob": memory.encode("utf-8"),
         }
+
+        # upload the document to the dataset
+        documents = dataset.upload_documents([document])
+
+        document = documents[0]
+
+        # parse document to memory
+        dataset.async_parse_documents([document.id])
+
+        # set metadata
+        document.update({"meta_fields": {"name": conversation_id}})
+
+        return memory
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
 @mcp.tool()
-def query_rag(dataset_name: str, query: str) -> str:
-    """
-    Queries the specified dataset in the knowledge base to retrieve an answer based on the provided query.
+def search_memory(query: str, conversation_id: str) -> str:
+    """Search for memories in the database based on semantic similarity.
 
     Args:
-        dataset_name (str): The name of the dataset to query.
-        query (str): The question or query string to search for in the dataset.
+        query (str): The search query.
+        conversation_id (str): The conversation id to be saved.
+        top_k (int): The number of results to return.
 
     Returns:
-        str: A dictionary containing:
-            - "reference": Details of the reference data from the knowledge base, including content and source information.
-            - "answer": The answer derived from the knowledge base. If the answer is not found, a message indicating this will be returned.
-
-    Raises:
-        Exception: If an error occurs during the query process, an error message is returned.
+        list[str]: A list of relevant memories.
     """
     try:
-        response = ask_ragflow(dataset_name, query)
-        return {
-            "reference": response["data"]["reference"],
-            "answer": response["data"]["answer"],
-        }
+        dataset = ragflow.get_dataset(name=dataset_name)
+
+        # search for the memory
+        results = ragflow.retrieve(
+            dataset_ids=[dataset.id],
+            document_ids=None,
+            question=conversation_id + " " + query,
+            page=1,
+            page_size=3,
+            similarity_threshold=0.5,
+            vector_similarity_weight=0.5,
+            top_k=5,
+            rerank_id=None,
+            keyword=False,
+        )
+
+        print(results)
+
+        return results
 
     except Exception as e:
         return f"Error querying dataset: {str(e)}"
@@ -215,5 +214,4 @@ app.router.routes.append(Host("mcp.acme.corp", app=app))
 
 if __name__ == "__main__":
     # Run the server with Uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)
