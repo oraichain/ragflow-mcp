@@ -14,6 +14,7 @@ class Settings(BaseSettings):
         "RAGFLOW_BASE_URL", "")
     model_name: str = os.getenv("MODEL_NAME", ""),
     enable_auth: bool = os.getenv("AUTH_ENABLED", "").lower() == "true"
+    port: int = os.getenv("PORT", 8000)
 
     class Config:
         # If you don't use .env file, pydantic can read directly from environment variables
